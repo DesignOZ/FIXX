@@ -125,6 +125,9 @@ public class MainActivity extends PreferenceActivity implements Preference.OnPre
                 }
 
                 break;
+            case "fix":
+                startActivity(new Intent(this, TestActivity.class));
+                break;
 //            case "fix":
 //                if (errorlog_size != 0) {
 //                    AlertDialog.Builder Line1builder = new AlertDialog.Builder(this);
