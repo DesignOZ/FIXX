@@ -194,7 +194,7 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
         this.btn_autofix = findPreference("autofix");
         this.btn_autofix.setOnPreferenceClickListener(this);
         this.btn_float = findPreference("overlay");
-//        this.btn_float.setOnPreferenceClickListener(this);
+        this.btn_float.setOnPreferenceClickListener(this);
     }
 
     public void onResume() {
@@ -205,7 +205,7 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
 
     public boolean onPreferenceClick(Preference preference) {
         String key = preference.getKey();
-        boolean z = true;
+//        boolean z = true;
         switch (key) {
             case "overlay":
                 final Intent overlayIntent = new Intent(getActivity(), OverlayService.class);
