@@ -1,6 +1,5 @@
 package com.overimagine.fixx;
 
-import android.net.Uri;
 import android.os.Bundle;
 
 import com.google.android.material.tabs.TabLayout;
@@ -31,7 +30,7 @@ public class TestActivity extends AppCompatActivity {
             public Fragment getItem(int position) {
                 switch (position) {
                     case 0:
-                        return ListFragment.newInstance("", "");
+                        return new ListFragment();
                     case 1:
                         return SettingFragment.newInstance("", "");
                     case 2:
@@ -49,8 +48,16 @@ public class TestActivity extends AppCompatActivity {
             @Nullable
             @Override
             public CharSequence getPageTitle(int position) {
-                return "OBJECT" + (position + 1);
-
+                switch (position) {
+                    case 0:
+                        return "List";
+                    case 1:
+                        return "Setting";
+                    case 2:
+                        return "Info";
+                    default:
+                        return null;
+                }
             }
         };
 

@@ -12,8 +12,10 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.provider.CallLog;
 import android.provider.Contacts;
+
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+
 import android.util.Log;
 
 import com.overimagine.fixx.R;
@@ -32,7 +34,7 @@ public class CallLogUtil {
     private Cursor c;
     private ContentValues values;
 
-    private PhoneUtil mPhoneUtil;
+    private SimSlotUtil mSimSlotUtil;
     private String PhoneNumber_1 = null;            //Line1Number
     private String PhoneNumber_2 = null;            //Line2Number
     private boolean isMultiSimEnabled = false;
@@ -47,23 +49,19 @@ public class CallLogUtil {
         c = context.getContentResolver().query(UriCalls, null, null, null, null);
         values = new ContentValues();
 
-        mPhoneUtil = new PhoneUtil(context);
-        isMultiSimEnabled = mPhoneUtil.isDualSimEnabled();
+        mSimSlotUtil = new SimSlotUtil(context);
+        isMultiSimEnabled = mSimSlotUtil.isMultiSimEnabled();
 
         if (isMultiSimEnabled) {
-            PhoneNumber_1 = mPhoneUtil.getSim1MSISDN();
-            PhoneNumber_2 = mPhoneUtil.getSim2MSISDN();
+            PhoneNumber_1 = mSimSlotUtil.getSim1MSISDN();
+            PhoneNumber_2 = mSimSlotUtil.getSim2MSISDN();
         } else
-            PhoneNumber_1 = mPhoneUtil.getLine1Number();
-
+            PhoneNumber_1 = mSimSlotUtil.getLine1Number();
 
     }
 
-    public int getCallLogSize() {
-        return c.getCount();
-    }
+    public void getErrorLog() {
 
-    public int getErrorLog() {
         errorlog_size = 0;
         c = mContext.getContentResolver().query(UriCalls, null, null, null, null);
 
@@ -79,20 +77,70 @@ public class CallLogUtil {
 
             } while (c.moveToNext());
         }
-        Log.i(TAG, "getErrorLog: " + errorlog_size);
+        Log.i(TAG, "getErrorLogSize: " + errorlog_size);
+    }
+
+    public int getCallLogSize() {
+        return c.getCount();
+    }
+
+    public int getErrorLogSize() {
+        errorlog_size = 0;
+        c = mContext.getContentResolver().query(UriCalls, null, null, null, null);
+
+        if (c.moveToFirst()) {
+            do {
+                String num = c.getString(c.getColumnIndex(CallLog.Calls.NUMBER));
+
+                if (num.length() >= 21 && num.contains(PhoneNumber_1))
+                    errorlog_size++;
+
+                if (isMultiSimEnabled && num.length() >= 21 && num.contains(PhoneNumber_2))
+                    errorlog_size++;
+
+            } while (c.moveToNext());
+        }
+//        Log.i(TAG, "getErrorLogSize: " + errorlog_size);
         return errorlog_size;
     }
 
+    public String getContactName(final String phoneNumber) {
+        Uri uri;
+        String[] projection;
+        Uri mBaseUri = Contacts.Phones.CONTENT_FILTER_URL;
+        projection = new String[]{android.provider.Contacts.People.NAME};
+        try {
+            Class<?> c = Class.forName("android.provider.ContactsContract$PhoneLookup");
+            mBaseUri = (Uri) c.getField("CONTENT_FILTER_URI").get(mBaseUri);
+            projection = new String[]{"display_name"};
+        } catch (Exception e) {
+        }
+
+
+        uri = Uri.withAppendedPath(mBaseUri, Uri.encode(phoneNumber));
+        Cursor cursor = mContext.getContentResolver().query(uri, projection, null, null, null);
+
+        String contactName = "";
+
+        if (cursor.moveToFirst() & cursor.getCount() != 0) {
+            contactName = cursor.getString(0);
+        } else contactName = phoneNumber;
+
+        cursor.close();
+        cursor = null;
+
+        return contactName;
+    }
 
     void run(boolean isMissedCall) {
         this.isMissedCall = isMissedCall;
 
-        AutoFixTask autoFixTask = new AutoFixTask();
+        CallLogFixTask autoFixTask = new CallLogFixTask();
         autoFixTask.execute();
     }
 
 
-    private class AutoFixTask extends AsyncTask {
+    private class CallLogFixTask extends AsyncTask {
         int countlogs = 0;
 
         @Override
@@ -126,8 +174,8 @@ public class CallLogUtil {
                         .setWhen(System.currentTimeMillis())
                         .setDefaults(Notification.DEFAULT_ALL)
                         .setCategory(Notification.CATEGORY_MESSAGE)
-                        .setPriority(Notification.PRIORITY_HIGH)
-                        .setVisibility(Notification.VISIBILITY_PUBLIC);
+                        .setPriority(Notification.PRIORITY_HIGH);
+//                        .setVisibility(Notification.VISIBILITY_PUBLIC);
             else
                 builder.setContentTitle(errorlog_size + "개의 자동변환을 마쳤습니다.")
                         .setSmallIcon(R.drawable.noti_icon)
@@ -136,17 +184,18 @@ public class CallLogUtil {
                         .setWhen(System.currentTimeMillis())
                         .setDefaults(Notification.DEFAULT_ALL)
                         .setCategory(Notification.CATEGORY_MESSAGE)
-                        .setPriority(Notification.PRIORITY_HIGH)
-                        .setVisibility(Notification.VISIBILITY_PUBLIC);
+                        .setPriority(Notification.PRIORITY_HIGH);
+//                        .setVisibility(Notification.VISIBILITY_PUBLIC);
             NotificationManager nm = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-            nm.notify(0001, builder.build());
+            nm.notify(1, builder.build());
             super.onPostExecute(o);
         }
 
     }
 
     public void Fix(Cursor cursor, String number) {
-        if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.WRITE_CALL_LOG) != PackageManager.PERMISSION_GRANTED)            ;
+        ActivityCompat.checkSelfPermission(mContext, Manifest.permission.WRITE_CALL_LOG);
+
         String Number = cursor.getString(cursor.getColumnIndex(CallLog.Calls.NUMBER));
         String date = cursor.getString(cursor.getColumnIndex(CallLog.Calls.DATE));
         String Duration = cursor.getString(cursor.getColumnIndex(CallLog.Calls.DURATION));
@@ -175,33 +224,6 @@ public class CallLogUtil {
 
     }
 
-    private String getContactName(final String phoneNumber) {
-        Uri uri;
-        String[] projection;
-        Uri mBaseUri = Contacts.Phones.CONTENT_FILTER_URL;
-        projection = new String[]{android.provider.Contacts.People.NAME};
-        try {
-            Class<?> c = Class.forName("android.provider.ContactsContract$PhoneLookup");
-            mBaseUri = (Uri) c.getField("CONTENT_FILTER_URI").get(mBaseUri);
-            projection = new String[]{"display_name"};
-        } catch (Exception e) {
-        }
-
-
-        uri = Uri.withAppendedPath(mBaseUri, Uri.encode(phoneNumber));
-        Cursor cursor = mContext.getContentResolver().query(uri, projection, null, null, null);
-
-        String contactName = "";
-
-        if (cursor.moveToFirst() & cursor.getCount() != 0) {
-            contactName = cursor.getString(0);
-        } else contactName = phoneNumber;
-
-        cursor.close();
-        cursor = null;
-
-        return contactName;
-    }
 
 //    private class FixTask extends AsyncTask {
 //        int fixlogs = 0;
@@ -234,7 +256,7 @@ public class CallLogUtil {
 //                        }
 //                    }
 //
-//                    if (isDualSimEnabled && num.length() >= 21 && num.contains(PhoneNumber_2)) {
+//                    if (isMultiSimEnabled && num.length() >= 21 && num.contains(PhoneNumber_2)) {
 //                        Fix(c, PhoneNumber_2);
 //                        progressDialog.setProgress(fixlogs++);
 //                        try {

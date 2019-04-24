@@ -40,4 +40,22 @@
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
 
+
+    <string name="Nop">다시 열지않기</string>
+    <string name="OK">확인</string>
+    <string name="about">FIXX</string>
+    <string name="easteregg_fixx">"8월 28일 개강합니다.
+큰일났습니다."</string>
+    <string name="easteregg_message">FIXX는 샤오미 미 시리즈 중 VoLTE 지원 기기에서 일어나는 수신버그를 해결하고자 만들어진 앱 입니다.</string>
+    <string name="nopermission">"다른 앱 위에 그리기 권한이 없습니다.
+이 권한이 없으면 오버레이 서비스를 이용할 수 없습니다. 계속하시겠습니까?"</string>
+    <string name="overlay_close">"오버레이 서비스가 실행중입니다.
+종료하시겠습니까?"</string>
+    <string name="setting">설정</string>
+
+    <string name="txt_autofix">자동변환</string>
+    <string name="txt_overlay">오버레이</string>
+    <string name="txt_sim_status">SIM 상태</string>
+    <string name="update">업데이트 내역</string>
+    <string name="auto_fix_close">"자동변환 서비스가 실행중입니다. 종료하시겠습니까?\"</string>
 </resources>

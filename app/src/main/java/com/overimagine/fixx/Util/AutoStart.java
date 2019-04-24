@@ -15,13 +15,13 @@ public class AutoStart extends BroadcastReceiver {
     private static final String TAG = "AutoStart";
 
     Context context;
-    PhoneUtil mPhoneUtil;
+    SimSlotUtil mPhoneUtil;
 
     @Override
     public void onReceive(Context context, Intent intent) {
         this.context = context;
 
-        mPhoneUtil = new PhoneUtil(context);
+        mPhoneUtil = new SimSlotUtil(context);
 
         String action = intent.getAction();
         Log.d(TAG, "onReceive: " + action);

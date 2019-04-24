@@ -18,7 +18,7 @@ public class AutoFixService extends Service {
     private TelephonyManager manager;
 
     CallLogUtil mCallLogUtil;
-    PhoneUtil mPhoneUtil;
+    SimSlotUtil mPhoneUtil;
 
     @Override
     public void onCreate() {
@@ -27,7 +27,7 @@ public class AutoFixService extends Service {
         Log.d(TAG, "onCreate: Start PhoneStateListener");
 
         mCallLogUtil = new CallLogUtil(this);
-        mPhoneUtil = new PhoneUtil(this);
+        mPhoneUtil = new SimSlotUtil(this);
 //        StartNotification();
         startForeground(0, new Notification());
         super.onCreate();
@@ -52,7 +52,7 @@ public class AutoFixService extends Service {
 //        nm.notify(0002, builder.build());
 //        Log.d(TAG, "onCreate: Notify");
 //
-//        if (mCallLogUtil.getErrorLog() != 0)
+//        if (mCallLogUtil.getErrorLogSize() != 0)
 //            mCallLogUtil.run(false);
 //    }
 
@@ -64,7 +64,7 @@ public class AutoFixService extends Service {
                 if (!incomingNumber.isEmpty()) {
                     try {
                         Thread.sleep(3000);
-                        if (mCallLogUtil.getErrorLog() != 0)
+                        if (mCallLogUtil.getErrorLogSize() != 0)
                             mCallLogUtil.run(true);
 
                     } catch (InterruptedException e) {

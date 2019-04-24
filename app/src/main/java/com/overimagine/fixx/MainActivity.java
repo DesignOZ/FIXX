@@ -1,496 +1,184 @@
 package com.overimagine.fixx;
 
-import android.content.ContentValues;
-import android.content.Intent;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
-import android.database.Cursor;
-import android.net.Uri;
+import android.content.SharedPreferences.Editor;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.Bundle;
-import android.preference.Preference;
-import android.preference.PreferenceActivity;
-import android.widget.Toast;
-
+import android.util.Log;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.overimagine.fixx.Util.CallLogUtil;
-import com.overimagine.fixx.Util.PhoneUtil;
+import com.overimagine.fixx.Util.SimSlotUtil;
+import com.overimagine.fixx.Util.Util;
 
-import static android.widget.Toast.LENGTH_SHORT;
-import static android.widget.Toast.makeText;
+import androidx.appcompat.app.AppCompatActivity;
 
-public class MainActivity extends PreferenceActivity implements Preference.OnPreferenceClickListener {
-
+public class MainActivity extends AppCompatActivity implements OnClickListener {
     private static final String TAG = "MainActivity";
-
-    public static boolean isMultiSimEnabled = false;
-
-    private int calllog_size;
-    private int errorlog_size;          // 오류항목 개수
-
-    private Preference btn_easteregg;
-    private int egg_toast = 0;
-    Toast easter = null;
-    private Preference btn_number;
-    private Preference btn_fix;
-    private Preference btn_autofix;
-
-    PhoneUtil mPhoneUtil;
+    int ErrorLogSize;
+    Boolean OverlayBoot;
+    Boolean autoFixBoot;
+    Editor editor;
+    ImageView img_autofix;
+    ImageView img_autofix_boot;
+    ImageView img_overlay;
+    ImageView img_overlay_boot;
     CallLogUtil mCallLogUtil;
-
-    private Uri UriCalls; // 대소문자에 주의.
-    private Cursor c;
-    private ContentValues values;
-
+    SimSlotUtil mSimSlotUtil;
+    Util mUtil;
     SharedPreferences settings;
-    SharedPreferences.Editor editor;
+    TextView txt_count;
+    TextView txt_count_ea;
+    TextView txt_exist;
+    TextView txt_sim1;
+    TextView txt_sim2;
+    String version;
 
+    /* renamed from: com.tistory.overimagine.voltecalllogfix.MainActivity$1 */
+    class C01921 implements DialogInterface.OnClickListener {
+        C01921() {
+        }
 
-    @Override
+        public void onClick(DialogInterface dialogInterface, int i) {
+            dialogInterface.cancel();
+        }
+    }
+
+    /* renamed from: com.tistory.overimagine.voltecalllogfix.MainActivity$2 */
+    class C01932 implements DialogInterface.OnClickListener {
+        C01932() {
+        }
+
+        public void onClick(DialogInterface dialogInterface, int i) {
+            MainActivity.this.editor.putString("Version", MainActivity.this.version);
+            MainActivity.this.editor.commit();
+            dialogInterface.cancel();
+        }
+    }
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        addPreferencesFromResource(R.xml.mainactivity);
-
-        mPhoneUtil = new PhoneUtil(this);
-        isMultiSimEnabled = mPhoneUtil.isDualSimEnabled();
-
-        mCallLogUtil = new CallLogUtil(this);
-
-        settings = getSharedPreferences("setting", 0);
-        editor = settings.edit();
-
-        UriCalls = Uri.parse("content://call_log/calls"); // 대소문자에 주의.
-        c = getContentResolver().query(UriCalls, null, null, null, null);
-        values = new ContentValues();
-
-        btn_easteregg = findPreference("easteregg");
-        btn_easteregg.setOnPreferenceClickListener(this);
-
-        btn_number = findPreference("number");
-        btn_number.setSummary(mPhoneUtil.getSimSlotStatus(true));
-
-        btn_fix = findPreference("fix");
-        btn_fix.setOnPreferenceClickListener(this);
-
-        btn_autofix = (Preference) findPreference("autofix");
-        btn_autofix.setOnPreferenceClickListener(this);
-
-        // 아직 미구현
-
-        Preference btn_incoming = (Preference) findPreference("incomingcall");
-        btn_incoming.setOnPreferenceClickListener(this);
-
-//        if (isExistApp("com.tistory.overimagine.fixxdonate")) {
-//            PreferenceCategory category_AD = (PreferenceCategory) findPreference("Category_AD");
-//            Preference AD = findPreference("AD");
-//            category_AD.removePreference(AD);
-//        }
-
+        setContentView((int) R.layout.activity_main);
+        this.mSimSlotUtil = new SimSlotUtil(this);
+        this.mCallLogUtil = new CallLogUtil(this);
+        this.mUtil = new Util(this);
+        this.settings = getSharedPreferences("settings", 0);
+        this.editor = this.settings.edit();
+        this.txt_count = (TextView) findViewById(R.id.txt_main_count);
+        this.txt_count_ea = (TextView) findViewById(R.id.txt_main_count_ea);
+        this.txt_exist = (TextView) findViewById(R.id.txt_main_isErrorExist);
+        this.txt_sim1 = (TextView) findViewById(R.id.txt_main_sim1);
+        this.txt_sim2 = (TextView) findViewById(R.id.txt_main_sim2);
+        this.img_autofix = (ImageView) findViewById(R.id.img_main_autofix);
+        this.img_autofix_boot = (ImageView) findViewById(R.id.img_main_autofix_boot);
+        this.img_overlay = (ImageView) findViewById(R.id.img_main_overlay);
+        this.img_overlay_boot = (ImageView) findViewById(R.id.img_main_overlay_boot);
+        findViewById(R.id.menu).setOnClickListener(this);
+        init();
     }
 
-
-    @Override
-    public void onResume() {
-        egg_toast = 0;
-
-        calllog_size = mCallLogUtil.getCallLogSize();
-        errorlog_size = mCallLogUtil.getErrorLog();
-
-        if (calllog_size == 0)
-            btn_fix.setSummary(R.string.calllog_null);
-        else if (calllog_size > 0 & errorlog_size != 0)
-            btn_fix.setSummary(String.format(getString(R.string.calllog_summary), calllog_size, errorlog_size));
-        else
-            btn_fix.setSummary(R.string.calllog_notfound);
-
-//        if (!isServiceRunningCheck())
-//            btn_autofix.setTitle(getString(R.string.auto_fix));
-//
-//        else
-//            btn_autofix.setTitle(getString(R.string.auto_fix) + " (실행중)");
-        super.onResume();
-    }
-
-    @Override
-    public boolean onPreferenceClick(Preference preference) {
-        switch (preference.getKey()) {
-            case "easteregg":
-                if (egg_toast < 6) {
-                    egg_toast++;
-                    if (easter != null)
-                        easter.cancel();
-                    easter = makeText(this, "이스터에그를 열기위해선 " + (7 - egg_toast) + "회 더 눌러야합니다.", LENGTH_SHORT);
-                    easter.show();
-                } else {
-                    startActivity(new Intent(this, EasterEggActivity.class));
-                    easter.cancel();
-                }
-
-                break;
-            case "fix":
-                startActivity(new Intent(this, TestActivity.class));
-                break;
-//            case "fix":
-//                if (errorlog_size != 0) {
-//                    AlertDialog.Builder Line1builder = new AlertDialog.Builder(this);
-//
-//                    // 여기서 부터는 알림창의 속성 설정
-//                    Line1builder.setTitle("주의")        // 제목 설정
-//                            .setMessage(getString(R.string.caution_summary))        // 메세지 설정
-//                            .setCancelable(true)        // 뒤로 버튼 클릭시 취소 가능 설정
-//                            .setPositiveButton("확인", new DialogInterface.OnClickListener() {
-//                                // 확인 버튼 클릭시 설정
-//                                public void onClick(DialogInterface dialog, int whichButton) {
-////                                    mCallLogUtil.run(true);
-//                                    FixTask fixTask = new FixTask();
-//                                    fixTask.execute();
-//                                }
-//                            })
-//                            .setNegativeButton("취소", new DialogInterface.OnClickListener() {
-//                                public void onClick(DialogInterface dialog, int whichButton) {
-//                                    dialog.cancel();
-//                                }
-//                            });
-//
-//                    AlertDialog Line1dialog = Line1builder.create();    // 알림창 객체 생성
-//                    Line1dialog.show();    // 알림창 띄우기
-//                } else makeText(this, "통화목록 중 오류 항목이 없습니다.", LENGTH_SHORT).show();
-//                break;
-//            case "autofix":
-//                if (!isServiceRunningCheck()) {
-//                    Intent serviceIntent = new Intent(this, AutoFixService.class);
-//                    startService(serviceIntent);
-////                    StartNotification();
-//                    btn_autofix.setTitle(getString(R.string.auto_fix) + " (실행중)");
-//                    btn_autofix.setEnabled(true);
-//                    editor.putBoolean("auto_service", true);
-//                    editor.commit();
-//                } else makeText(this, "서비스가 이미 실행중입니다.", LENGTH_SHORT).show();
-//                break;
-//            case "incomingcall":
-//                makeText(this, "아직 구현되지 않았습니다.", LENGTH_SHORT).show();
-//                break;
+    private void init() {
+        if (this.mSimSlotUtil.isSim1Enabled()) {
+            this.txt_sim1.setText("SIM1 : OK");
         }
-//
-        return false;
+        if (this.mSimSlotUtil.isSim2Enabled()) {
+            this.txt_sim2.setText("SIM2 : OK");
+        }
+        try {
+            this.version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            Log.i(TAG, "init: " + this.version);
+            Log.i(TAG, "init: " + this.settings.getString("Version", null));
+        } catch (NameNotFoundException e) {
+        }
+        if (this.settings.getString("Version", null) == null) {
+            updateDialog(true);
+        } else if (Float.valueOf(this.version).floatValue() > Float.valueOf(this.settings.getString("Version", null)).floatValue()) {
+            updateDialog(true);
+        }
     }
-//
-//    private boolean isExistApp(String packageName) {
-//        PackageManager pm = getPackageManager();
-//        try {
-//            pm.getApplicationInfo(packageName, PackageManager.GET_META_DATA);
-//        } catch (Exception e) {
-//            return false;
-//        }
-//        return true;
+
+    private void updateDialog(boolean firstrun) {
+        AlertDialog.Builder updateDialog = new AlertDialog.Builder(this);
+        updateDialog.setTitle("FIXX " + this.version + " Changelog").setMessage((CharSequence) "오버레이 기능 추가\n디자인 변경 (네비게이션바 포함)\n실행중인 서비스를 사용자가 종료할 수 있도록 변경\n메모리를 정리했을 때 서비스 종료되는 문제 수정\n전호를 수신했음에도 부재중전화로 뜨는 문제 해결").setPositiveButton((int) R.string.OK, new C01921());
+        if (firstrun) {
+            updateDialog.setNegativeButton(getString(R.string.Nop), new C01932()).show();
+        } else {
+            updateDialog.show();
+        }
+    }
+
+    protected void onResume() {
+        super.onResume();
+        this.ErrorLogSize = this.mCallLogUtil.getErrorLogSize();
+        if (this.ErrorLogSize != 0) {
+            if (this.ErrorLogSize < 10) {
+                this.txt_count.setText("0" + String.valueOf(this.ErrorLogSize));
+            } else {
+                this.txt_count.setText(String.valueOf(this.ErrorLogSize));
+            }
+            this.txt_count_ea.setVisibility(0);
+            this.txt_exist.setVisibility(0);
+        } else {
+            this.txt_count.setTextSize(60.0f);
+            this.txt_count.setText("없습니다 :D");
+            this.txt_count_ea.setVisibility(4);
+            this.txt_exist.setVisibility(4);
+        }
+        if (this.mUtil.isServiceRunningCheck("AutoFixService")) {
+            this.img_autofix.setImageResource(R.drawable.ic_check);
+        } else {
+            this.img_autofix.setImageResource(R.drawable.ic_clear);
+        }
+        if (this.mUtil.isServiceRunningCheck("OverlayService")) {
+            this.img_overlay.setImageResource(R.drawable.ic_check);
+        } else {
+            this.img_overlay.setImageResource(R.drawable.ic_clear);
+        }
+        this.autoFixBoot = Boolean.valueOf(this.settings.getBoolean("autoFixBoot", false));
+        if (this.autoFixBoot.booleanValue()) {
+            this.img_autofix_boot.setVisibility(4);
+        } else {
+            this.img_autofix_boot.setVisibility(0);
+        }
+        this.OverlayBoot = Boolean.valueOf(this.settings.getBoolean("overlayBoot", false));
+        if (this.OverlayBoot.booleanValue()) {
+            this.img_overlay_boot.setVisibility(4);
+        } else {
+            this.img_overlay_boot.setVisibility(0);
+        }
+    }
+
+    public void onClick(View view) {
+        switch (view.getId()) {
+            case R.id.menu:
+//                showPopup(view);
+                return;
+            default:
+                return;
+        }
+    }
+
+//    private void showPopup(View v) {
+//        PopupMenu popupMenu = new PopupMenu(this, v);
+//        popupMenu.setOnMenuItemClickListener(this);
+//        popupMenu.inflate(R.menu.menu);
+//        popupMenu.show();
 //    }
 //
-//    public boolean isServiceRunningCheck() {
-//        ActivityManager manager = (ActivityManager) this.getSystemService(Activity.ACTIVITY_SERVICE);
-//        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
-//            if ("com.tistory.overimagine.voltecalllogfix.Util.AutoFixService".equals(service.service.getClassName())) {
-//                return true;
-//            }
+//    public boolean onMenuItemClick(MenuItem menuItem) {
+//        switch (menuItem.getItemId()) {
+//            case R.id.update:
+//                updateDialog(false);
+//                break;
+//            case R.id.about:
+//                startActivity(new Intent(this, EasterEgg.class));
+//                break;
 //        }
 //        return false;
 //    }
-
-//    출처:http://itmir.tistory.com/326 [미르의 IT 정복기]
-//    public void getErrorLog() {
-//        c = getContentResolver().query(UriCalls, null, null, null, null);
-//        errorlog_size = 0;
-//        if (calllog_size > 0)
-//            if (c.moveToFirst()) {
-//                do {
-//                    String num = c.getString(c.getColumnIndex(CallLog.Calls.NUMBER));
-//                    if (num.length() >= 21 & num.contains(defaultSimNumber))
-//                        errorlog_size++;
-//                } while (c.moveToNext());
-//            }
-//
-//        if (calllog_size == 0)
-//            btn_fix.setSummary(R.string.calllog_null);
-//        else if (calllog_size > 0 & errorlog_size != 0)
-//            btn_fix.setSummary(String.format(getString(R.string.calllog_summary), calllog_size, errorlog_size));
-//        else
-//            btn_fix.setSummary(R.string.calllog_notfound);
-//
-//    }
-
-//    public void getNumber() {
-//        // 전화번호 설정.
-//
-////        getApplicationContext();
-//        TelephonyManager telephonyManager = (TelephonyManager) getApplicationContext().getSystemService(TELEPHONY_SERVICE);
-//String [] MSISDN =  telephonyManager.
-//        subInfoList = mSubscriptionManager.getActiveSubscriptionInfoList();
-//        if (subInfoList.size() > 1) {
-//            isDualSimEnabled = true;
-//        }
-//
-//        for (SubscriptionInfo subscriptionInfo : subInfoList) {
-//            Numbers.add(subscriptionInfo.getNumber());
-//            SimSlots.add("SIM " + (subscriptionInfo.getSimSlotIndex() + 1));
-//            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-//                // TODO: Consider calling
-//                //    ActivityCompat#requestPermissions
-//                // here to request the missing permissions, and then overriding
-//                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-//                //                                          int[] grantResults)
-//                // to handle the case where the user grants the permission. See the documentation
-//                // for ActivityCompat#requestPermissions for more details.
-//                return;
-//            }
-//            IMEIs.add(telephonyManager.getDeviceId());
-//
-//        }
-//        // (String) num_sim1 : SIM1 전화번호
-//        // (String) sim1 : SIM1  -  SIM1 전화번호
-//
-//        if (isDualSimEnabled) {
-//
-//            if (Numbers.get(0).length() > 11)
-//                num_sim1 = "010" + Numbers.get(0).substring(Numbers.get(0).length() - 8, Numbers.get(0).length());
-//            else
-//                num_sim1 = Numbers.get(0);
-//
-//
-//            if (Numbers.get(1).length() > 11)
-//                num_sim2 = "010" + Numbers.get(1).substring(Numbers.get(1).length() - 8, Numbers.get(1).length());
-//            else
-//                num_sim2 = Numbers.get(1);
-//
-//            sim1 = SimSlots.get(0) + "  -  " + num_sim1;
-//            sim2 = SimSlots.get(1) + "  -  " + num_sim2;
-//            Log.i(TAG, "getNumber: " + sim1);
-//            Log.i(TAG, "getNumber: " + sim2);
-//
-//            btn_number.setSummary(sim1 + "\n" + sim2);
-////
-////            if (telephonyManager.getDeviceId().equals(IMEIs.get(0))) {
-////                defaultSim = sim1;
-////                defaultSimNumber = num_sim1;
-////                btn_default.setSummary(sim1);
-////                btn_number.setSummary(sim1 + "\n" + sim2);
-////                Log.d(TAG, "defaultSIM: " + defaultSim);
-////            } else {
-////                defaultSim = sim2;
-////                defaultSimNumber = num_sim2;
-////                btn_default.setSummary(sim2);
-////                btn_number.setSummary(sim1 + "\n" + sim2);
-////                Log.d(TAG, "defaultSIM: " + defaultSim);
-////            }
-//
-//        } else {
-//            // 싱글심일 경우
-//            if (Numbers.get(0).length() > 11)
-//                defaultSimNumber = "010" + Numbers.get(0).substring(Numbers.get(0).length() - 8, Numbers.get(0).length());
-//            else
-//                defaultSimNumber = Numbers.get(0);
-//
-//            defaultSim = SimSlots.get(0) + "  -  " + defaultSimNumber;
-//            btn_number.setSummary(defaultSim);
-//            Log.d(TAG, "defaultSIM: " + defaultSim);
-//
-//        }
-//
-//    }
-//
-//    private void deleteLog(Cursor cursor) {
-//        String _ID = cursor.getString(cursor.getColumnIndex(CallLog.Calls._ID));
-//        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
-//            // TODO: Consider calling
-//            //    ActivityCompat#requestPermissions
-//            // here to request the missing permissions, and then overriding
-//            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-//            //                                          int[] grantResults)
-//            // to handle the case where the user grants the permission. See the documentation
-//            // for ActivityCompat#requestPermissions for more details.
-//            return;
-//        }
-//        getContentResolver().delete(
-//                CallLog.Calls.CONTENT_URI,
-//                CallLog.Calls._ID + " =" + _ID, null);
-//    }
-//
-//    private class FixTask extends AsyncTask {
-//        int fixlogs = 0;
-//        ProgressDialog progressDialog = new ProgressDialog(MainActivity.this);
-//
-//        @Override
-//        protected void onPreExecute() {
-//
-//            progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-//            progressDialog.setMessage("진행중입니다");
-//            progressDialog.setCancelable(false);
-//            progressDialog.setMax(errorlog_size);
-//            progressDialog.show();
-//
-//            super.onPreExecute();
-//        }
-//
-//        @Override
-//        protected Object doInBackground(Object[] objects) {
-//            try {
-//                if (c.moveToFirst())
-//                    do {
-//                        String Number = c.getString(c.getColumnIndex(CallLog.Calls.NUMBER));
-//                        if (Number.length() >= 21 & Number.contains(defaultSimNumber)) {
-//                            String date = c.getString(c.getColumnIndex(CallLog.Calls.DATE));
-//                            String Duration = c.getString(c.getColumnIndex(CallLog.Calls.DURATION));
-//                            String New = c.getString(c.getColumnIndex(CallLog.Calls.NEW));
-//                            String Type = c.getString(c.getColumnIndex(CallLog.Calls.TYPE));
-//                            String ID = c.getString(c.getColumnIndex(CallLog.Calls._ID));
-//
-//                            Log.d(TAG, "Num : " + Number);
-//                            deleteLog(c);
-//
-//                            values.put(CallLog.Calls.DATE, date);
-//                            values.put(CallLog.Calls.DURATION, Duration);
-//                            values.put(CallLog.Calls.NEW, New);
-//                            values.put(CallLog.Calls.NUMBER, Number.replace(defaultSimNumber, ""));
-//                            values.put(CallLog.Calls.TYPE, Type);
-//                            values.put(CallLog.Calls._ID, ID);
-//
-//                            if (ActivityCompat.checkSelfPermission(getBaseContext(), Manifest.permission.WRITE_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
-//                                // TODO: Consider calling
-//                                //    ActivityCompat#requestPermissions
-//                                // here to request the missing permissions, and then overriding
-//                                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-//                                //                                          int[] grantResults)
-//                                // to handle the case where the user grants the permission. See the documentation
-//                                // for ActivityCompat#requestPermissions for more details.
-//
-//                                // return;
-//                            }
-//                            getContentResolver().insert(CallLog.Calls.CONTENT_URI, values);
-//
-//                            progressDialog.setProgress(fixlogs++);
-//                            Thread.sleep(500);
-//                        }
-//                    } while (c.moveToNext());
-//
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//
-//            return null;
-//        }
-//
-//        @Override
-//        protected void onPostExecute(Object o) {
-//            progressDialog.dismiss();
-//            AlertDialog.Builder Line1builder = new AlertDialog.Builder(MainActivity.this);
-//
-//            // 여기서 부터는 알림창의 속성 설정
-//            Line1builder.setTitle("완료되었습니다.")        // 제목 설정
-//                    .setCancelable(true)        // 뒤로 버튼 클릭시 취소 가능 설정
-//                    .setPositiveButton("확인", new DialogInterface.OnClickListener() {
-//                        // 확인 버튼 클릭시 설정
-//                        public void onClick(DialogInterface dialog, int whichButton) {
-//                            c.close();
-//                            getErrorLog();
-//                        }
-//                    });
-//
-//            AlertDialog Line1dialog = Line1builder.create();    // 알림창 객체 생성
-//            Line1dialog.show();    // 알림창 띄우기
-//            super.onPostExecute(o);
-//        }
-//    }
-//
-//    // 미사용
-//    public void Fix() {
-//        if (c.moveToFirst())
-//            do {
-//                String Number = c.getString(c.getColumnIndex(CallLog.Calls.NUMBER));
-//                if (Number.length() >= 21 & Number.contains(num_sim1)) {
-//                    String date = c.getString(c.getColumnIndex(CallLog.Calls.DATE));
-//                    String Duration = c.getString(c.getColumnIndex(CallLog.Calls.DURATION));
-//                    String New = c.getString(c.getColumnIndex(CallLog.Calls.NEW));
-//                    String Type = c.getString(c.getColumnIndex(CallLog.Calls.TYPE));
-//                    String ID = c.getString(c.getColumnIndex(CallLog.Calls._ID));
-//
-//                    Log.d(TAG, "Num : " + Number);
-//                    deleteLog(c);
-//
-//                    values.put(CallLog.Calls.DATE, date);
-//                    values.put(CallLog.Calls.DURATION, Duration);
-//                    values.put(CallLog.Calls.NEW, New);
-//                    values.put(CallLog.Calls.NUMBER, Number.replace(defaultSimNumber, ""));
-//                    values.put(CallLog.Calls.TYPE, Type);
-//                    values.put(CallLog.Calls._ID, ID);
-//
-//                    if (ActivityCompat.checkSelfPermission(getBaseContext(), Manifest.permission.WRITE_CALL_LOG) != PackageManager.PERMISSION_GRANTED)
-//                        ;
-//                    getContentResolver().insert(CallLog.Calls.CONTENT_URI, values);
-//                }
-//            }
-//            while (c.moveToNext());
-//    }
-//
-//    private class AutoFixTask extends AsyncTask {
-//
-//        @Override
-//        protected Object doInBackground(Object[] objects) {
-//            CallLogUtil();
-//            return null;
-//        }
-//
-//        @Override
-//        protected void onPostExecute(Object o) {
-//
-//            NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext());
-//
-//            builder.setContentTitle(errorlog_size + "개의 자동 변환을 마쳤습니다.")
-////                .setContentText("상태바 드래그시 보이는 서브타이틀")
-////                .setTicker("상태바 한줄 메시지")
-//                    .setSmallIcon(R.drawable.noti_icon)
-//                    .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))
-//                    .setAutoCancel(true)
-//                    .setWhen(System.currentTimeMillis())
-//                    .setDefaults(Notification.DEFAULT_ALL)
-//                    .setCategory(Notification.CATEGORY_MESSAGE)
-//                    .setPriority(Notification.PRIORITY_HIGH)
-//                    .setVisibility(Notification.VISIBILITY_PUBLIC);
-//
-//            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-//            nm.notify(0001, builder.build());
-//            super.onPostExecute(o);
-//        }
-//    }
-//
-//    public class AutoFixService extends Service {
-//        public AutoFixService() {
-//        }
-//
-//        @Override
-//        public void onCreate() {
-//            NotificationCompat.Builder builder = new NotificationCompat.Builder(MainActivity.this);
-//
-//            builder.setContentTitle("자동 변환 서비스가 시작되었습니다.")
-////                .setContentText("상태바 드래그시 보이는 서브타이틀")
-////                .setTicker("상태바 한줄 메시지")
-//                    .setSmallIcon(R.drawable.noti_icon)
-//                    .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))
-//                    .setAutoCancel(true)
-//                    .setWhen(System.currentTimeMillis())
-//                    .setDefaults(Notification.DEFAULT_ALL)
-//                    .setCategory(Notification.CATEGORY_MESSAGE)
-//                    .setPriority(Notification.PRIORITY_HIGH)
-//                    .setVisibility(Notification.VISIBILITY_PUBLIC);
-//
-//            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-//            nm.notify(0002, builder.build());
-//
-//            manager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
-//            super.onCreate();
-//        }
-//
-//        @Nullable
-//        @Override
-//        public IBinder onBind(Intent intent) {
-//            return null;
-//        }
-//    }
-
 }
-

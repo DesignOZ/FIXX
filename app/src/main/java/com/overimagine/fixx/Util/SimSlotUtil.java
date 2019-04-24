@@ -3,7 +3,9 @@ package com.overimagine.fixx.Util;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+
 import androidx.core.app.ActivityCompat;
+
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.util.Log;
@@ -15,8 +17,8 @@ import java.util.List;
  * Created by Horyeong Park on 2017-06-11.
  */
 
-public class PhoneUtil {
-    private static final String TAG = "PhoneUtil";
+public class SimSlotUtil {
+    private static final String TAG = "SimSlotUtil";
     private Context context;
 
     private List<SubscriptionInfo> subscriptionInfos;
@@ -27,7 +29,7 @@ public class PhoneUtil {
     private boolean Sim1Enabled = false;
     private boolean Sim2Enabled = false;
 
-    public PhoneUtil(Context mContext) {
+    public SimSlotUtil(Context mContext) {
         context = mContext;
 //        TelephonyManager telephonyManager = (TelephonyManager) mContext.getSystemService(TELEPHONY_SERVICE);
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
@@ -63,15 +65,15 @@ public class PhoneUtil {
         }
     }
 
-    public boolean isDualSimEnabled() {
+    public boolean isMultiSimEnabled() {
         return subscriptionInfos.size() > 1;
     }
 
-    private boolean isSim1Enabled() {
+    public boolean isSim1Enabled() {
         return Sim1Enabled;
     }
 
-    private boolean isSim2Enabled() {
+    public boolean isSim2Enabled() {
         return Sim2Enabled;
     }
 
@@ -110,7 +112,7 @@ public class PhoneUtil {
     }
 
     public String getSimSlotStatus(boolean Line) {
-        if (isDualSimEnabled())
+        if (isMultiSimEnabled())
             if (Line) return getSim1Slot() + "\n" + getSim2Slot();
             else return getSim1Slot() + ",    " + getSim2Slot();
         else {
