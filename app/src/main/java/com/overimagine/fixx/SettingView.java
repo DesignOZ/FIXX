@@ -1,10 +1,9 @@
 package com.overimagine.fixx;
 
-import android.app.AlertDialog.Builder;
-import android.app.NotificationManager;
+import android.annotation.TargetApi;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.ContentValues;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
@@ -13,18 +12,22 @@ import android.content.SharedPreferences.Editor;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceFragment;
-import android.util.Log;
+import android.provider.Settings;
+import android.widget.Toast;
 
+import com.overimagine.fixx.Service.AutoFixService;
 import com.overimagine.fixx.Util.CallLogUtil;
+import com.overimagine.fixx.Util.NotificationUtil;
+import com.overimagine.fixx.Service.OverlayService;
+import com.overimagine.fixx.Util.ServiceRunningCheck;
 import com.overimagine.fixx.Util.SimSlotUtil;
-import com.overimagine.fixx.Util.Util;
 
 import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
 
 public class SettingView extends PreferenceFragment implements OnPreferenceClickListener {
     private Uri UriCalls;
@@ -32,13 +35,13 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
     Preference btn_fix;
     Preference btn_float;
     /* renamed from: c */
-    private Cursor f9c;
+    private Cursor c;
     int calllog_size;
     Editor editor;
     int errorlog_size;
     CallLogUtil mCallLogUtil;
     SimSlotUtil mPhoneUtil;
-    Util mUtil;
+    ServiceRunningCheck mUtil;
     SharedPreferences settings;
     private ContentValues values;
 
@@ -112,7 +115,7 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
             }
 
             public void onClick(DialogInterface dialog, int whichButton) {
-                SettingView.this.f9c.close();
+                SettingView.this.c.close();
             }
         }
 
@@ -131,13 +134,13 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
         }
 
         protected Object doInBackground(Object[] objects) {
-            if (SettingView.this.f9c.moveToFirst()) {
+            if (SettingView.this.c.moveToFirst()) {
                 do {
                     ProgressDialog progressDialog;
                     int i;
-                    String num = SettingView.this.f9c.getString(SettingView.this.f9c.getColumnIndex("number"));
+                    String num = SettingView.this.c.getString(SettingView.this.c.getColumnIndex("number"));
                     if (num.length() >= 21 && num.contains(SettingView.this.mPhoneUtil.getSim1MSISDN())) {
-                        SettingView.this.mCallLogUtil.Fix(SettingView.this.f9c, SettingView.this.mPhoneUtil.getSim1MSISDN());
+                        SettingView.this.mCallLogUtil.Fix(SettingView.this.c, SettingView.this.mPhoneUtil.getSim1MSISDN());
                         progressDialog = this.progressDialog;
                         i = this.fixlogs;
                         this.fixlogs = i + 1;
@@ -149,7 +152,7 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
                         }
                     }
                     if (SettingView.this.mPhoneUtil.isMultiSimEnabled() && num.length() >= 21 && num.contains(SettingView.this.mPhoneUtil.getSim2MSISDN())) {
-                        SettingView.this.mCallLogUtil.Fix(SettingView.this.f9c, SettingView.this.mPhoneUtil.getSim2MSISDN());
+                        SettingView.this.mCallLogUtil.Fix(SettingView.this.c, SettingView.this.mPhoneUtil.getSim2MSISDN());
                         progressDialog = this.progressDialog;
                         i = this.fixlogs;
                         this.fixlogs = i + 1;
@@ -160,14 +163,14 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
                             e2.printStackTrace();
                         }
                     }
-                } while (SettingView.this.f9c.moveToNext());
+                } while (SettingView.this.c.moveToNext());
             }
             return null;
         }
 
         protected void onPostExecute(Object o) {
             this.progressDialog.dismiss();
-            Builder Line1builder = new Builder(SettingView.this.getActivity());
+            AlertDialog.Builder Line1builder = new AlertDialog.Builder(SettingView.this.getActivity());
             Line1builder.setTitle("완료되었습니다.").setCancelable(true).setPositiveButton("확인", new C02031());
             Line1builder.create().show();
             super.onPostExecute(o);
@@ -180,11 +183,11 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
         addPreferencesFromResource(R.xml.mainactivity);
         this.mCallLogUtil = new CallLogUtil(getActivity());
         this.mPhoneUtil = new SimSlotUtil(getActivity());
-        this.mUtil = new Util(getActivity());
+        this.mUtil = new ServiceRunningCheck(getActivity());
         this.settings = getActivity().getSharedPreferences("settings", 0);
         this.editor = this.settings.edit();
         this.UriCalls = Uri.parse("content://call_log/calls");
-        this.f9c = getActivity().getContentResolver().query(this.UriCalls, null, null, null, null);
+        this.c = getActivity().getContentResolver().query(this.UriCalls, null, null, null, null);
         this.values = new ContentValues();
         this.btn_fix = findPreference("fix");
         this.btn_fix.setOnPreferenceClickListener(this);
@@ -203,100 +206,79 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
     public boolean onPreferenceClick(Preference preference) {
         String key = preference.getKey();
         boolean z = true;
-        switch (key.hashCode()) {
-            case -1091287984:
-                if (key.equals("overlay")) {
-                    z = true;
+        switch (key) {
+            case "overlay":
+                final Intent overlayIntent = new Intent(getActivity(), OverlayService.class);
+                AlertDialog.Builder overlayCloser;
+                if (!this.mUtil.isServiceRunningCheck("OverlayService")) {
+                    if (!Settings.canDrawOverlays(getActivity())) {
+                        overlayCloser = new AlertDialog.Builder(getActivity());
+                        overlayCloser.setTitle((CharSequence) "주의");
+                        overlayCloser.setMessage(getString(R.string.nopermission));
+                        overlayCloser.setCancelable(true);
+                        overlayCloser.setPositiveButton((CharSequence) "확인", new C01995());
+                        overlayCloser.setNegativeButton((CharSequence) "취소", new C02006());
+                        overlayCloser.create().show();
+                        break;
+                    }
+                    getActivity().startService(overlayIntent);
+                    this.editor.putBoolean("overlayBoot", true);
+                    this.editor.commit();
+                    StartNotification();
+                    refresh();
                     break;
                 }
+                overlayCloser = new AlertDialog.Builder(getActivity());
+                overlayCloser.setTitle((CharSequence) "주의");
+                overlayCloser.setMessage(getString(R.string.auto_fix_close));
+                overlayCloser.setCancelable(true);
+                overlayCloser.setPositiveButton((CharSequence) "확인", new OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        Toast.makeText(SettingView.this.getActivity(), "서비스가 종료됩니다.", Toast.LENGTH_SHORT).show();
+                        SettingView.this.getActivity().stopService(overlayIntent);
+                        SettingView.this.btn_autofix.setTitle(SettingView.this.getString(R.string.auto_fix));
+                        SettingView.this.editor.putBoolean("overlayBoot", false);
+                        SettingView.this.editor.commit();
+                        SettingView.this.refresh();
+                    }
+                });
+                overlayCloser.setNegativeButton((CharSequence) "취소", new C02028());
+                overlayCloser.create().show();
                 break;
-            case -646308858:
-                if (key.equals("autofix")) {
-                    z = true;
+            case "autofix":
+                final Intent autoFixIntent = new Intent(getActivity(), AutoFixService.class);
+                if (!this.mUtil.isServiceRunningCheck("AutoFixService")) {
+                    getActivity().startService(autoFixIntent);
+                    this.editor.putBoolean("autoFixBoot", true);
+                    this.editor.commit();
+                    StartNotification();
+                    refresh();
                     break;
                 }
+                new AlertDialog.Builder(getActivity()).setTitle((CharSequence) "주의").setMessage(getString(R.string.auto_fix_close)).setCancelable(true).setPositiveButton((CharSequence) "확인", new OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        Toast.makeText(SettingView.this.getActivity(), "서비스가 종료됩니다.", Toast.LENGTH_SHORT).show();
+                        SettingView.this.getActivity().stopService(autoFixIntent);
+                        SettingView.this.btn_autofix.setTitle(SettingView.this.getString(R.string.auto_fix));
+                        SettingView.this.editor.putBoolean("autoFixBoot", false);
+                        SettingView.this.editor.commit();
+                        SettingView.this.refresh();
+                    }
+                }).setNegativeButton((CharSequence) "취소", new C01973()).show();
                 break;
-            case 101397:
-                if (key.equals("fix")) {
-                    z = false;
+            case "fix":
+                if (this.errorlog_size == 0) {
+                    Toast.makeText(getActivity(), "통화목록 중 오류 항목이 없습니다.", Toast.LENGTH_SHORT).show();
                     break;
                 }
+                AlertDialog.Builder Line1builder = new AlertDialog.Builder(getActivity());
+                Line1builder.setTitle((CharSequence) "주의").setMessage(getString(R.string.caution_summary)).setCancelable(true).setPositiveButton((CharSequence) "확인", new C01962()).setNegativeButton((CharSequence) "취소", new C01951());
+                Line1builder.create().show();
                 break;
         }
-//        switch (z) {
-//            case false:
-//                if (this.errorlog_size == 0) {
-//                    Toast.makeText(getActivity(), "통화목록 중 오류 항목이 없습니다.", Toast.LENGTH_SHORT).show();
-//                    break;
-//                }
-//                AlertDialog.Builder Line1builder = new AlertDialog.Builder(getActivity());
-//                Line1builder.setTitle((CharSequence) "주의").setMessage(getString(R.string.caution_summary)).setCancelable(true).setPositiveButton((CharSequence) "확인", new C01962()).setNegativeButton((CharSequence) "취소", new C01951());
-//                Line1builder.create().show();
-//                break;
-//            case true:
-//                final Intent autoFixIntent = new Intent(getActivity(), AutoFixService.class);
-//                if (!this.mUtil.isServiceRunningCheck("AutoFixService")) {
-//                    getActivity().startService(autoFixIntent);
-//                    this.editor.putBoolean("autoFixBoot", true);
-//                    this.editor.commit();
-//                    StartNotification();
-//                    refresh();
-//                    break;
-//                }
-//                new AlertDialog.Builder(getActivity()).setTitle((CharSequence) "주의").setMessage(getString(R.string.auto_fix_close)).setCancelable(true).setPositiveButton((CharSequence) "확인", new OnClickListener() {
-//                    public void onClick(DialogInterface dialog, int whichButton) {
-//                        Toast.makeText(SettingView.this.getActivity(), "서비스가 종료됩니다.", Toast.LENGTH_SHORT).show();
-//                        SettingView.this.getActivity().stopService(autoFixIntent);
-//                        SettingView.this.btn_autofix.setTitle(SettingView.this.getString(R.string.auto_fix));
-//                        SettingView.this.editor.putBoolean("autoFixBoot", false);
-//                        SettingView.this.editor.commit();
-//                        SettingView.this.refresh();
-//                    }
-//                }).setNegativeButton((CharSequence) "취소", new C01973()).show();
-//                break;
-//            case true:
-//                final Intent overlayIntent = new Intent(getActivity(), OverlayService.class);
-//                AlertDialog.Builder overlayCloser;
-//                if (!this.mUtil.isServiceRunningCheck("OverlayService")) {
-//                    if (!Settings.canDrawOverlays(getActivity())) {
-//                        overlayCloser = new AlertDialog.Builder(getActivity());
-//                        overlayCloser.setTitle((CharSequence) "주의");
-//                        overlayCloser.setMessage(getString(R.string.nopermission));
-//                        overlayCloser.setCancelable(true);
-//                        overlayCloser.setPositiveButton((CharSequence) "확인", new C01995());
-//                        overlayCloser.setNegativeButton((CharSequence) "취소", new C02006());
-//                        overlayCloser.create().show();
-//                        break;
-//                    }
-//                    getActivity().startService(overlayIntent);
-//                    this.editor.putBoolean("overlayBoot", true);
-//                    this.editor.commit();
-//                    StartNotification();
-//                    refresh();
-//                    break;
-//                }
-//                overlayCloser = new AlertDialog.Builder(getActivity());
-//                overlayCloser.setTitle((CharSequence) "주의");
-//                overlayCloser.setMessage(getString(R.string.auto_fix_close));
-//                overlayCloser.setCancelable(true);
-//                overlayCloser.setPositiveButton((CharSequence) "확인", new OnClickListener() {
-//                    public void onClick(DialogInterface dialog, int whichButton) {
-//                        Toast.makeText(SettingView.this.getActivity(), "서비스가 종료됩니다.", Toast.LENGTH_SHORT).show();
-//                        SettingView.this.getActivity().stopService(overlayIntent);
-//                        SettingView.this.btn_autofix.setTitle(SettingView.this.getString(R.string.auto_fix));
-//                        SettingView.this.editor.putBoolean("overlayBoot", false);
-//                        SettingView.this.editor.commit();
-//                        SettingView.this.refresh();
-//                    }
-//                });
-//                overlayCloser.setNegativeButton((CharSequence) "취소", new C02028());
-//                overlayCloser.create().show();
-//                break;
-//        }
         return false;
     }
 
-    //    @TargetApi(23)
     public void onObtainingPermissionOverlayWindow() {
         startActivity(new Intent("android.settings.action.MANAGE_OVERLAY_PERMISSION", Uri.parse("package:" + getActivity().getPackageName())));
     }
@@ -305,9 +287,11 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
         startActivity(new Intent(getActivity(), MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP));
     }
 
+    @TargetApi(Build.VERSION_CODES.O)
     private void StartNotification() {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(getActivity());
-        Util util = new Util(getActivity());
+
+//        Notification.Builder builder = new Notification.Builder(this, getC);
+        ServiceRunningCheck util = new ServiceRunningCheck(getActivity());
         boolean a = util.isServiceRunningCheck("AutoFixService");
         boolean b = util.isServiceRunningCheck("OverlayService");
         String s = null;
@@ -318,10 +302,21 @@ public class SettingView extends PreferenceFragment implements OnPreferenceClick
         } else if (b) {
             s = "오버레이 서비스";
         }
-//        builder.setContentTitle("FIXX 서비스가 시작되었습니다.").setContentText("실행중인 서비스 : " + s).setSmallIcon(R.drawable.noti_icon).setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher)).setAutoCancel(true).setWhen(System.currentTimeMillis()).setDefaults(-1).setCategory("msg").setContentIntent(PendingIntent.getActivity(getActivity(), 0, new Intent(getActivity(), MainActivity.class).addFlags(536870912), 0)).setPriority(1).setVisibility(1);
-        Log.d("ContentValues", "onCreate: Create Notification");
-        ((NotificationManager) getActivity().getSystemService(Context.NOTIFICATION_SERVICE)).notify(2, builder.build());
+        NotificationUtil.sendNotification(getContext(),
+                1, NotificationUtil.Channel.NOTICE, "FIXX 서비스가 시작되었습니다.", "실행중인 서비스 : " + s);
+//        builder.setContentTitle()
+//                .setContentText()
+//                .setSmallIcon(R.drawable.noti_icon)
+////                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))
+////                .setAutoCancel(true)
+////                .setWhen(System.currentTimeMillis()).setDefaults(-1).setCategory("msg")
+//                .setContentIntent(PendingIntent.getActivity(getActivity(), 0, new Intent(getActivity(), MainActivity.class)
+//                        .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0))
+//                .setPriority(1);
+////                .setVisibility();
+//        Log.d("ContentValues", "onCreate: Create Notification");
+//        ((NotificationUtil) getActivity().getSystemService(Context.NOTIFICATION_SERVICE)).notify(2, builder.build());
         refresh();
-        Log.d("ContentValues", "onCreate: Notify");
+//        Log.d("ContentValues", "onCreate: Notify");
     }
 }

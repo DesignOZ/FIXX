@@ -132,7 +132,7 @@ public class CallLogUtil {
         return contactName;
     }
 
-    void run(boolean isMissedCall) {
+    public void run(boolean isMissedCall) {
         this.isMissedCall = isMissedCall;
 
         CallLogFixTask autoFixTask = new CallLogFixTask();

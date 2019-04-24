@@ -1,4 +1,4 @@
-package com.overimagine.fixx.Util;
+package com.overimagine.fixx.Service;
 
 import android.app.Service;
 import android.content.Intent;
@@ -52,7 +52,7 @@ public class OverlayService extends Service {
     TextView txt_name;
     TextView txt_number;
 
-    /* renamed from: com.tistory.overimagine.voltecalllogfix.Util.OverlayService$1 */
+    /* renamed from: com.tistory.overimagine.voltecalllogfix.ServiceRunningCheck.OverlayService$1 */
     class myPhoneStateListener extends PhoneStateListener {
         myPhoneStateListener() {
         }
@@ -78,7 +78,7 @@ public class OverlayService extends Service {
         }
     }
 
-    /* renamed from: com.tistory.overimagine.voltecalllogfix.Util.OverlayService$2 */
+    /* renamed from: com.tistory.overimagine.voltecalllogfix.ServiceRunningCheck.OverlayService$2 */
     class C02082 implements OnTouchListener {
         C02082() {
         }

@@ -37,7 +37,7 @@
 
     <PreferenceCategory android:title="@string/category3">
         <Preference
-            android:key="incomingcall"
+            android:key="overlay"
             android:summary="@string/incomingcall_summary"
             android:title="@string/incomingcall" />
     </PreferenceCategory>
@@ -45,7 +45,7 @@
     <!--<PreferenceCategory-->
         <!--android:key="Category_AD"-->
         <!--android:title="AD">-->
-        <!--<com.tistory.overimagine.voltecalllogfix.Util.AdmobPreference android:key="AD" />-->
+        <!--<com.tistory.overimagine.voltecalllogfix.ServiceRunningCheck.AdmobPreference android:key="AD" />-->
     <!--</PreferenceCategory>-->
 
 </PreferenceScreen>

@@ -2,12 +2,16 @@ package com.overimagine.fixx;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
-import androidx.core.app.ActivityCompat;
-import androidx.appcompat.app.AlertDialog;
+
 import android.util.Log;
+
+import com.overimagine.fixx.Util.NotificationUtil;
 
 import static java.lang.Thread.sleep;
 
@@ -23,6 +27,10 @@ public class SplashActivity extends Activity {
         if (checkPermission()) {
             goToMain GoToMain = new goToMain();
             GoToMain.start();
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationUtil.createChannel(this);
         }
 
     }
@@ -62,19 +70,19 @@ public class SplashActivity extends Activity {
     }
 
     public void deniedPermission() {
-//        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-//        builder.setTitle("권한이 없습니다.")        // 제목 설정
-//                .setMessage("앱을 종료합니다.")
-//                .setCancelable(true)        // 뒤로 버튼 클릭시 취소 가능 설정
-//                .setPositiveButton("확인", new DialogInterface.OnClickListener() {
-//                    // 확인 버튼 클릭시 설정
-//                    public void onClick(DialogInterface dialog, int whichButton) {
-//                        finish();
-//                    }
-//                });
-//
-//        AlertDialog alertDialog = builder.create();    // 알림창 객체 생성
-//        alertDialog.show();
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("권한이 없습니다.")        // 제목 설정
+                .setMessage("앱을 종료합니다.")
+                .setCancelable(true)        // 뒤로 버튼 클릭시 취소 가능 설정
+                .setPositiveButton("확인", new DialogInterface.OnClickListener() {
+                    // 확인 버튼 클릭시 설정
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        finish();
+                    }
+                });
+
+        AlertDialog alertDialog = builder.create();    // 알림창 객체 생성
+        alertDialog.show();
 
     }
 
@@ -114,18 +122,8 @@ public class SplashActivity extends Activity {
                 || getApplicationContext().checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
                 != PackageManager.PERMISSION_GRANTED) {
 
-//            // Should we show an explanation?
-//            if (shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-//                // Explain to the user why we need to write the permission.
-//            }
-
             requestPermissions(new String[]{Manifest.permission.READ_CALL_LOG, Manifest.permission.WRITE_CONTACTS, Manifest.permission.READ_PHONE_STATE}, 100);
-
-            // MY_PERMISSION_REQUEST_STORAGE is an
-            // app-defined int constant
-
         } else {
-            // 다음 부분은 항상 허용일 경우에 해당이 됩니다.
         }
     }
 }

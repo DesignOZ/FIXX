@@ -13,8 +13,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.overimagine.fixx.Util.CallLogUtil;
+import com.overimagine.fixx.Util.ServiceRunningCheck;
 import com.overimagine.fixx.Util.SimSlotUtil;
-import com.overimagine.fixx.Util.Util;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -30,7 +30,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
     ImageView img_overlay_boot;
     CallLogUtil mCallLogUtil;
     SimSlotUtil mSimSlotUtil;
-    Util mUtil;
+    ServiceRunningCheck mUtil;
     SharedPreferences settings;
     TextView txt_count;
     TextView txt_count_ea;
@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener {
         setContentView((int) R.layout.activity_main);
         this.mSimSlotUtil = new SimSlotUtil(this);
         this.mCallLogUtil = new CallLogUtil(this);
-        this.mUtil = new Util(this);
+        this.mUtil = new ServiceRunningCheck(this);
         this.settings = getSharedPreferences("settings", 0);
         this.editor = this.settings.edit();
         this.txt_count = (TextView) findViewById(R.id.txt_main_count);
