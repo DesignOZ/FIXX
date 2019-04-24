@@ -8,6 +8,7 @@ import com.overimagine.fixx.Fragment.InfoFragment;
 import com.overimagine.fixx.Fragment.ListFragment;
 import com.overimagine.fixx.Fragment.SettingFragment;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentPagerAdapter;
@@ -19,9 +20,11 @@ public class TestActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_test);
+        final TabLayout tabLayout = findViewById(R.id.tabLayout);
 
         ViewPager viewPager = findViewById(R.id.viewPager);
         FragmentPagerAdapter fragmentPagerAdapter = new FragmentPagerAdapter(getSupportFragmentManager()) {
+
             private final static int NUM_FRAGMENTS = 3;
 
             @Override
@@ -42,11 +45,17 @@ public class TestActivity extends AppCompatActivity {
             public int getCount() {
                 return NUM_FRAGMENTS;
             }
+
+            @Nullable
+            @Override
+            public CharSequence getPageTitle(int position) {
+                return "OBJECT" + (position + 1);
+
+            }
         };
 
-        TabLayout tabLayout = findViewById(R.id.tabLayout);
-        tabLayout.setupWithViewPager(viewPager);
-
         viewPager.setAdapter(fragmentPagerAdapter);
+        tabLayout.setupWithViewPager(viewPager);
     }
+
 }
