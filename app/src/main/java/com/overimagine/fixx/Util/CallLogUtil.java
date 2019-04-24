@@ -12,8 +12,8 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.provider.CallLog;
 import android.provider.Contacts;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
 import android.util.Log;
 
 import com.overimagine.fixx.R;
