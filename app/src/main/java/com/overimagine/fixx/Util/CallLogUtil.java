@@ -146,8 +146,7 @@ public class CallLogUtil {
     }
 
     public void Fix(Cursor cursor, String number) {
-        if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.WRITE_CALL_LOG) != PackageManager.PERMISSION_GRANTED)
-            ;
+        if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.WRITE_CALL_LOG) != PackageManager.PERMISSION_GRANTED)            ;
         String Number = cursor.getString(cursor.getColumnIndex(CallLog.Calls.NUMBER));
         String date = cursor.getString(cursor.getColumnIndex(CallLog.Calls.DATE));
         String Duration = cursor.getString(cursor.getColumnIndex(CallLog.Calls.DURATION));
