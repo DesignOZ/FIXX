@@ -24,7 +24,7 @@ public class SimSlotUtil {
     private List<SubscriptionInfo> subscriptionInfos;
 
     private ArrayList<String> MSISDNs;
-    private ArrayList<String> SimSlots;
+    private ArrayList<Integer> SimSlots;
 
     private boolean Sim1Enabled = false;
     private boolean Sim2Enabled = false;
@@ -55,7 +55,7 @@ public class SimSlotUtil {
             else
                 Sim2Enabled = true;
 
-            SimSlots.add("SIM " + (subscriptionInfo.getSimSlotIndex() + 1));
+            SimSlots.add(subscriptionInfo.getSimSlotIndex() + 1);
 
             if (subscriptionInfo.getNumber().length() > 11) {
                 MSISDNs.add("010" + subscriptionInfo.getNumber().substring(subscriptionInfo.getNumber().length() - 8, subscriptionInfo.getNumber().length()));
@@ -111,17 +111,6 @@ public class SimSlotUtil {
         else return null;
     }
 
-    public String getSimSlotStatus(boolean Line) {
-        if (isMultiSimEnabled())
-            if (Line) return getSim1Slot() + "\n" + getSim2Slot();
-            else return getSim1Slot() + ",    " + getSim2Slot();
-        else {
-            if (isSim1Enabled())
-                return getSim1Slot();
-            else
-                return getSim2Slot();
-        }
-    }
 
     public String getLine1Number() {
         return MSISDNs.get(0);

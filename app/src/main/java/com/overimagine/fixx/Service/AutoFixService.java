@@ -45,7 +45,7 @@ public class AutoFixService extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext());
 
         builder.setContentTitle("자동 변환 서비스가 시작되었습니다.")
-                .setContentText(mPhoneUtil.getSimSlotStatus(false))
+//                .setContentText(mPhoneUtil.getSimSlotStatus(false))
 //                .setSmallIcon(R.drawable.noti_icon)
 //                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))
 //                .setAutoCancel(true)

@@ -5,68 +5,70 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.os.Build;
+import android.os.AsyncTask;
 import android.os.Bundle;
 
-import android.util.Log;
-
 import com.overimagine.fixx.Util.NotificationUtil;
+import com.overimagine.fixx.Util.SimSlotUtil;
 
 import static java.lang.Thread.sleep;
 
 public class SplashActivity extends Activity {
     private static final String TAG = "SplashActivity";
+    private SharedPreferences mSharedPreference;
+    private SharedPreferences.Editor mEditor;
+    private SimSlotUtil mSimSlotUtil;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
-        getPermission();
 
+        // Init SimSlotUtil
+        mSimSlotUtil = new SimSlotUtil(this);
+
+        // Init SharedPreference
+        mSharedPreference = getSharedPreferences("PhoneInfo", MODE_PRIVATE);
+        mEditor = mSharedPreference.edit();
+
+        // Create Notification Channel
+        NotificationUtil.createChannel(this);
+
+        // Check Permission
         if (checkPermission()) {
-            goToMain GoToMain = new goToMain();
-            GoToMain.start();
-        }
+            new InitThread().start();
+        } else
+            requestPermissions(new String[]{Manifest.permission.READ_CALL_LOG, Manifest.permission.WRITE_CONTACTS, Manifest.permission.READ_PHONE_STATE}, 100);
+    }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationUtil.createChannel(this);
-        }
-
+    private boolean checkPermission() {
+        if (getApplicationContext().checkSelfPermission(Manifest.permission.READ_CALL_LOG)
+                == PackageManager.PERMISSION_GRANTED
+                && getApplicationContext().checkSelfPermission(Manifest.permission.WRITE_CONTACTS)
+                == PackageManager.PERMISSION_GRANTED
+                && getApplicationContext().checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
+                == PackageManager.PERMISSION_GRANTED)
+            return true;
+        else
+            return false;
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case 100:
-
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Log.d(TAG, "onRequestPermissionsResult: " + grantResults.length);
-                    for (int i = 0; i < grantResults.length; i++) {
-                        Log.d(TAG, "onRequestPermissionsResult: " + grantResults[i]);
-                    }
-
-                    // 권한 허가
-                    // 해당 권한을 사용해서 작업을 진행할 수 있습니다
-                    if (!checkPermission())
-                        deniedPermission();
-                    else {
-                        try {
-                            sleep(2500);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        startActivity(new Intent(SplashActivity.this, MainActivity.class));
-                        finish();
-                    }
-                } else {
-                    // 권한 거부
-                    // 사용자가 해당권한을 거부했을때 해주어야 할 동작을 수행합니다
-                    deniedPermission();
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        int j = 0;
+//        if (requestCode == 100) {
+        for (int grantResult : grantResults) {
+            if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                if (++j == 3) {
+                    new InitThread().start();
                 }
+            } else {
+                deniedPermission();
+            }
         }
+//        }
     }
 
     public void deniedPermission() {
@@ -86,10 +88,37 @@ public class SplashActivity extends Activity {
 
     }
 
-    private class goToMain extends Thread {
+    private class InitTask extends AsyncTask {
 
         @Override
-        public void run() {
+        protected Object doInBackground(Object[] objects) {
+            if (mSimSlotUtil.isMultiSimEnabled()) {
+                mEditor.putBoolean("MultiSimEnabled", mSimSlotUtil.isMultiSimEnabled());
+                mEditor.putBoolean("SIM_SLOT_1", mSimSlotUtil.isSim1Enabled());
+                mEditor.putBoolean("SIM_SLOT_2", mSimSlotUtil.isSim2Enabled());
+                mEditor.putString("MSISDN_1", mSimSlotUtil.getSim1MSISDN());
+                mEditor.putString("MSISDN_2", mSimSlotUtil.getSim2MSISDN());
+            } else {
+                if (mSimSlotUtil.isSim1Enabled()) {
+                    mEditor.putBoolean("MultiSimEnabled", mSimSlotUtil.isMultiSimEnabled());
+                    mEditor.putBoolean("SIM_SLOT_1", mSimSlotUtil.isSim1Enabled());
+                    mEditor.putBoolean("SIM_SLOT_2", false);
+                    mEditor.putString("MSISDN_1", mSimSlotUtil.getSim1MSISDN());
+                    mEditor.putString("MSISDN_2", null);
+                } else {
+                    mEditor.putBoolean("MultiSimEnabled", mSimSlotUtil.isMultiSimEnabled());
+                    mEditor.putBoolean("SIM_SLOT_1", false);
+                    mEditor.putBoolean("SIM_SLOT_2", mSimSlotUtil.isSim2Enabled());
+                    mEditor.putString("MSISDN_1", null);
+                    mEditor.putString("MSISDN_2", mSimSlotUtil.getSim2MSISDN());
+                }
+            }
+            mEditor.commit();
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Object o) {
             try {
                 sleep(2500);
             } catch (InterruptedException e) {
@@ -97,33 +126,47 @@ public class SplashActivity extends Activity {
             }
             startActivity(new Intent(SplashActivity.this, MainActivity.class));
             finish();
-
-            super.run();
+            super.onPostExecute(o);
         }
     }
 
-    private boolean checkPermission() {
-        if (getApplicationContext().checkSelfPermission(Manifest.permission.READ_CALL_LOG)
-                == PackageManager.PERMISSION_GRANTED
-                && getApplicationContext().checkSelfPermission(Manifest.permission.WRITE_CONTACTS)
-                == PackageManager.PERMISSION_GRANTED
-                && getApplicationContext().checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
-                == PackageManager.PERMISSION_GRANTED)
-            return true;
-        else
-            return false;
-    }
+    private class InitThread extends Thread {
 
-    private void getPermission() {
-        if (getApplicationContext().checkSelfPermission(Manifest.permission.READ_CALL_LOG)
-                != PackageManager.PERMISSION_GRANTED
-                || getApplicationContext().checkSelfPermission(Manifest.permission.WRITE_CONTACTS)
-                != PackageManager.PERMISSION_GRANTED
-                || getApplicationContext().checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
-                != PackageManager.PERMISSION_GRANTED) {
+        @Override
+        public void run() {
+            if (mSimSlotUtil.isMultiSimEnabled()) {
+                mEditor.putBoolean("MultiSimEnabled", mSimSlotUtil.isMultiSimEnabled());
+                mEditor.putBoolean("SIM_SLOT_1", mSimSlotUtil.isSim1Enabled());
+                mEditor.putBoolean("SIM_SLOT_2", mSimSlotUtil.isSim2Enabled());
+                mEditor.putString("MSISDN_1", mSimSlotUtil.getSim1MSISDN());
+                mEditor.putString("MSISDN_2", mSimSlotUtil.getSim2MSISDN());
+            } else {
+                if (mSimSlotUtil.isSim1Enabled()) {
+                    mEditor.putBoolean("MultiSimEnabled", mSimSlotUtil.isMultiSimEnabled());
+                    mEditor.putBoolean("SIM_SLOT_1", mSimSlotUtil.isSim1Enabled());
+                    mEditor.putBoolean("SIM_SLOT_2", false);
+                    mEditor.putString("MSISDN_1", mSimSlotUtil.getSim1MSISDN());
+                    mEditor.putString("MSISDN_2", null);
+                } else {
+                    mEditor.putBoolean("MultiSimEnabled", mSimSlotUtil.isMultiSimEnabled());
+                    mEditor.putBoolean("SIM_SLOT_1", false);
+                    mEditor.putBoolean("SIM_SLOT_2", mSimSlotUtil.isSim2Enabled());
+                    mEditor.putString("MSISDN_1", null);
+                    mEditor.putString("MSISDN_2", mSimSlotUtil.getSim2MSISDN());
+                }
+            }
+            mEditor.commit();
 
-            requestPermissions(new String[]{Manifest.permission.READ_CALL_LOG, Manifest.permission.WRITE_CONTACTS, Manifest.permission.READ_PHONE_STATE}, 100);
-        } else {
+            try {
+                sleep(2500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            startActivity(new Intent(SplashActivity.this, MainActivity.class));
+            finish();
+
+            super.run();
         }
     }
 }
